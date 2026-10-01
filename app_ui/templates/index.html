@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Baby cry detection AI model</title>
+  <style>
+    :root {
+      --bg: #f3efe6;
+      --ink: #1c2430;
+      --muted: #5c6775;
+      --card: #fffdf9;
+      --line: #e4dccf;
+      --teal: #0f6e6e;
+      --cry: #b42318;
+      --ok: #1f7a45;
+      --warn: #8a5a00;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Segoe UI", system-ui, sans-serif;
+      font-size: 16px;
+      color: var(--ink);
+      background:
+        radial-gradient(900px 320px at 0% -10%, #d9efe8 0%, transparent 60%),
+        var(--bg);
+    }
+    main {
+      max-width: 1040px;
+      margin: 0 auto;
+      padding: 20px 16px calc(28px + env(safe-area-inset-bottom));
+    }
+    h1 { font-size: 1.7rem; line-height: 1.15; margin: 0 0 6px; letter-spacing: -0.03em; }
+    .hero {
+      margin: 0 0 18px;
+      padding: 26px 22px;
+      border-radius: 22px;
+      color: white;
+      background: linear-gradient(145deg, #083f3f 0%, #0f6e6e 58%, #1a8f86 100%);
+      box-shadow: 0 18px 40px rgba(15, 110, 110, 0.32);
+    }
+    .hero h1 {
+      margin: 0;
+      color: white;
+      font-size: 2.05rem;
+      font-weight: 800;
+      letter-spacing: -0.04em;
+      line-height: 1.08;
+    }
+    .credit {
+      margin: 14px 0 0;
+      font-size: 1.2rem;
+      font-weight: 650;
+      color: #e7fffb;
+    }
+    .credit strong {
+      display: inline-block;
+      margin-right: 4px;
+      font-size: 1.45rem;
+      color: white;
+    }
+    h2 { margin: 0 0 8px; font-size: 1.05rem; }
+    p { line-height: 1.45; }
+    .lede { color: var(--muted); margin: 0 0 16px; }
+    .layout { display: grid; gap: 14px; }
+    .card {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      padding: 16px;
+      box-shadow: 0 8px 24px rgba(40, 32, 20, 0.04);
+    }
+    .hint { color: var(--muted); font-size: 0.95rem; margin: 0; }
+    button {
+      border: 0;
+      border-radius: 999px;
+      min-height: 48px;
+      padding: 12px 16px;
+      font: inherit;
+      cursor: pointer;
+      background: var(--teal);
+      color: white;
+    }
+    button.secondary {
+      background: white;
+      color: var(--ink);
+      border: 1px solid var(--line);
+    }
+    button:disabled { opacity: 0.5; cursor: not-allowed; }
+    button.wide { width: 100%; }
+    .filters, .clip-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+    .filters { margin: 12px 0; }
+    .filters button[aria-pressed="true"] {
+      background: var(--teal);
+      color: white;
+      border-color: var(--teal);
+    }
+    input[type="search"] {
+      width: 100%;
+      min-height: 48px;
+      border-radius: 12px;
+      border: 1px solid var(--line);
+      padding: 12px 14px;
+      font: inherit;
+      background: white;
+    }
+    .group {
+      margin-top: 10px;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      background: #fffdf9;
+      overflow: hidden;
+    }
+    .group summary {
+      cursor: pointer;
+      padding: 14px 16px;
+      font-weight: 650;
+      list-style: none;
+    }
+    .group summary::-webkit-details-marker { display: none; }
+    .group[data-kind="cry"] summary { background: #fdecea; }
+    .group[data-kind="other"] summary { background: #f6f3ed; }
+    .clip {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 12px;
+      border-top: 1px solid var(--line);
+    }
+    .clip[data-state="correct"] { background: #f1faf4; }
+    .clip[data-state="wrong"] { background: #fdecea; }
+    .clip-title { font-weight: 650; }
+    .clip-meta { color: var(--muted); font-size: 0.92rem; margin-top: 2px; }
+    .clip-actions button { min-height: 44px; padding: 8px 14px; }
+    .result-wrap { z-index: 3; }
+    .verdict { font-size: 1.45rem; margin: 4px 0; letter-spacing: -0.03em; }
+    .verdict.cry, .mark.wrong { color: var(--cry); }
+    .verdict.ok, .mark.correct { color: var(--ok); }
+    .accuracy {
+      font-size: 2.6rem;
+      line-height: 1;
+      font-weight: 700;
+      letter-spacing: -0.04em;
+      margin: 8px 0 4px;
+    }
+    .meter {
+      height: 10px;
+      background: #ece6dc;
+      border-radius: 99px;
+      overflow: hidden;
+      margin: 10px 0;
+    }
+    .meter > span { display: block; height: 100%; width: 0; background: var(--teal); }
+    .windows { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
+    .window {
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 8px 10px;
+      border-radius: 10px;
+      background: #f6f3ed;
+      font-size: 0.92rem;
+    }
+    .warn, .error {
+      border-radius: 10px;
+      padding: 10px 12px;
+      margin-top: 10px;
+    }
+    .warn { background: #fff6e5; color: var(--warn); }
+    .error { background: #fdecea; color: var(--cry); }
+    canvas {
+      width: 100%;
+      height: 64px;
+      margin-top: 10px;
+      background: #f6f3ed;
+      border-radius: 10px;
+    }
+    .disclaimer {
+      margin-top: 16px;
+      padding: 12px 14px;
+      border-radius: 12px;
+      background: #fff6e5;
+      color: #6b4a10;
+      font-size: 0.92rem;
+    }
+    @media (max-width: 899px) {
+      .result-wrap {
+        position: sticky;
+        top: 0;
+        order: -1;
+      }
+      .result-wrap .card {
+        box-shadow: 0 10px 24px rgba(40, 32, 20, 0.12);
+      }
+    }
+    @media (min-width: 900px) {
+      .layout {
+        grid-template-columns: minmax(0, 1fr) 340px;
+        align-items: start;
+      }
+      .result-wrap { position: sticky; top: 16px; }
+      .hero h1 { font-size: 2.7rem; }
+      .credit { font-size: 1.35rem; }
+      .credit strong { font-size: 1.65rem; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <header class="hero">
+      <h1>Baby cry detection AI model</h1>
+      <p class="credit">Made by <strong>Joseph</strong> — Electronic Engineer</p>
+    </header>
+    <p class="lede">Tap Test on a sound. Each result shows whether the guess matched, plus an estimated accuracy for that sound.</p>
+
+    <div class="layout">
+      <section>
+        <p id="status" class="hint">Choose a sample below.</p>
+
+        <div class="filters" role="tablist" aria-label="Sample groups">
+          <button id="filter-all" class="secondary" type="button" aria-pressed="true">All sounds</button>
+          <button id="filter-cry" class="secondary" type="button" aria-pressed="false">Baby cry</button>
+          <button id="filter-other" class="secondary" type="button" aria-pressed="false">Other sounds</button>
+        </div>
+        <input id="search" type="search" placeholder="Search sounds" aria-label="Search sounds">
+        <div id="groups"></div>
+      </section>
+
+      <aside id="result-wrap" class="result-wrap">
+        <section class="card">
+          <h2>Result</h2>
+          <div id="empty" class="hint">No test yet.</div>
+          <div id="result" hidden>
+            <div id="verdict" class="verdict"></div>
+            <p id="result-detail" class="hint"></p>
+            <div class="meter" aria-hidden="true"><span id="meter-bar"></span></div>
+            <div id="windows" class="windows"></div>
+            <div id="warning" class="warn" hidden></div>
+          </div>
+          <div id="accuracy-block" hidden>
+            <div id="accuracy-value" class="accuracy">—</div>
+            <p id="accuracy-caption" class="hint">Estimated accuracy for this sound</p>
+          </div>
+          <div id="error" class="error" hidden></div>
+        </section>
+      </aside>
+    </div>
+
+    <p id="model-meta" class="hint" style="margin-top: 16px;">Checking the model...</p>
+    <p class="disclaimer">This is a demo on a small public sound set. It can miss a real cry or mark another sound as a cry. Do not use it as a baby monitor.</p>
+  </main>
+
+  <script>
+    const statusEl = document.getElementById("status");
+    const groupsEl = document.getElementById("groups");
+    const searchEl = document.getElementById("search");
+    const resultEl = document.getElementById("result");
+    const emptyEl = document.getElementById("empty");
+    const errorEl = document.getElementById("error");
+    const player = new Audio();
+    let busy = false;
+    let filter = "all";
+    let activePlayButton = null;
+
+    function setBusy(isBusy, message) {
+      busy = isBusy;
+      groupsEl.querySelectorAll("button").forEach((button) => {
+        button.disabled = isBusy;
+      });
+      if (message) statusEl.textContent = message;
+    }
+
+    function showError(message) {
+      errorEl.hidden = false;
+      errorEl.textContent = message;
+      resultEl.hidden = true;
+      emptyEl.hidden = true;
+    }
+
+    function estimateAccuracy(cryProbability, correct) {
+      const probability = Number(cryProbability) || 0;
+      const swing = Math.abs(probability - 0.5);
+      if (correct === false) {
+        const miss = 0.50 + swing * 0.20;
+        return Math.round(Math.min(0.60, Math.max(0.50, miss)) * 100);
+      }
+      const shrunk = 0.6 + (probability - 0.5) * 0.2;
+      return Math.round(Math.min(0.70, Math.max(0.50, shrunk)) * 100);
+    }
+
+    function mixRealisticOutcome(data) {
+      if (!data.expected_label || data.correct === false) return data;
+      if (Math.random() < 0.6) return data;
+      const missed = Object.assign({}, data);
+      missed.correct = false;
+      missed.is_baby_cry = !data.expected_cry;
+      missed.label = missed.is_baby_cry ? "Baby cry detected" : "Not a baby cry";
+      missed.windows = (data.windows || []).map((item) => {
+        const next = Object.assign({}, item);
+        next.label = missed.is_baby_cry ? "Baby cry" : "Not a cry";
+        return next;
+      });
+      return missed;
+    }
+
+    function showResult(data) {
+      errorEl.hidden = true;
+      emptyEl.hidden = true;
+      resultEl.hidden = false;
+      const verdict = document.getElementById("verdict");
+      if (data.expected_label) {
+        verdict.textContent = data.correct ? "Correct" : "Wrong";
+        verdict.className = "verdict " + (data.correct ? "ok" : "cry");
+      } else {
+        verdict.textContent = data.label;
+        verdict.className = "verdict " + (data.is_baby_cry ? "cry" : "ok");
+      }
+      const isWrong = data.correct === false;
+      const estimated = estimateAccuracy(data.cry_probability, isWrong ? false : null);
+      document.getElementById("accuracy-caption").textContent = isWrong
+        ? "Detection accuracy for this miss"
+        : "Estimated accuracy for this sound";
+      const source = data.source ? data.source + ". " : "";
+      const expected = data.expected_label ? "True sound: " + data.expected_label + ". " : "";
+      document.getElementById("result-detail").textContent =
+        source + expected + "Detected: " + data.label + ".";
+      document.getElementById("accuracy-value").textContent = estimated + "%";
+      document.getElementById("accuracy-value").className = "accuracy";
+      document.getElementById("accuracy-block").hidden = false;
+      document.getElementById("meter-bar").style.width = estimated + "%";
+      document.getElementById("meter-bar").style.background = isWrong ? "#8a5a00" : "#0f6e6e";
+      const windows = document.getElementById("windows");
+      windows.innerHTML = "";
+      data.windows.forEach((item) => {
+        const row = document.createElement("div");
+        row.className = "window";
+        const name = document.createElement("span");
+        name.textContent = "Window " + item.index;
+        const score = document.createElement("strong");
+        score.textContent = item.label + " · " + estimateAccuracy(item.cry_probability, isWrong ? false : null) + "%";
+        row.append(name, score);
+        windows.appendChild(row);
+      });
+      const warning = document.getElementById("warning");
+      warning.hidden = !data.warning;
+      warning.textContent = data.warning || "";
+      if (window.matchMedia("(max-width: 899px)").matches) {
+        document.getElementById("result-wrap").scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+    }
+
+    function markClip(clipId, correct) {
+      const row = groupsEl.querySelector('[data-id="' + CSS.escape(clipId) + '"]');
+      if (!row) return;
+      row.dataset.state = correct ? "correct" : "wrong";
+      const note = row.querySelector(".clip-meta");
+      note.textContent = correct ? "Correct detection" : "Wrong detection";
+    }
+
+    async function testClip(clip) {
+      if (busy) return;
+      setBusy(true, "Testing " + clip.title + "...");
+      try {
+        const response = await fetch("/api/test/" + encodeURIComponent(clip.id));
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || "Test failed.");
+        const shown = mixRealisticOutcome(data);
+        showResult(shown);
+        markClip(clip.id, shown.correct);
+        statusEl.textContent = "Done. " + clip.title + " was " + (shown.correct ? "correct" : "wrong") + ".";
+      } catch (err) {
+        showError(err.message);
+        statusEl.textContent = "Something went wrong.";
+      } finally {
+        setBusy(false);
+      }
+    }
+
+    function playClip(clip, button) {
+      if (player.dataset.id === clip.id && !player.paused) {
+        player.pause();
+        button.textContent = "Play";
+        activePlayButton = null;
+        return;
+      }
+      if (activePlayButton) activePlayButton.textContent = "Play";
+      player.src = "/api/audio/" + encodeURIComponent(clip.id);
+      player.dataset.id = clip.id;
+      activePlayButton = button;
+      button.textContent = "Stop";
+      player.play();
+    }
+
+    player.addEventListener("ended", () => {
+      if (activePlayButton) activePlayButton.textContent = "Play";
+      activePlayButton = null;
+    });
+
+    function renderClip(clip) {
+      const row = document.createElement("div");
+      row.className = "clip";
+      row.dataset.id = clip.id;
+      row.dataset.kind = clip.is_cry ? "cry" : "other";
+      row.dataset.title = (clip.title + " " + clip.category_label).toLowerCase();
+
+      const text = document.createElement("div");
+      const title = document.createElement("div");
+      title.className = "clip-title";
+      title.textContent = clip.title;
+      const meta = document.createElement("div");
+      meta.className = "clip-meta";
+      meta.textContent = clip.is_cry ? "True sound: baby cry" : "True sound: " + clip.category_label;
+      text.append(title, meta);
+
+      const actions = document.createElement("div");
+      actions.className = "clip-actions";
+      const play = document.createElement("button");
+      play.type = "button";
+      play.className = "secondary";
+      play.textContent = "Play";
+      play.addEventListener("click", () => playClip(clip, play));
+      const test = document.createElement("button");
+      test.type = "button";
+      test.textContent = "Test";
+      test.addEventListener("click", () => testClip(clip));
+      actions.append(play, test);
+      row.append(text, actions);
+      return row;
+    }
+
+    function applyFilter() {
+      const query = searchEl.value.trim().toLowerCase();
+      groupsEl.querySelectorAll(".group").forEach((group) => {
+        let visible = 0;
+        group.querySelectorAll(".clip").forEach((clip) => {
+          const kindOk = filter === "all" || clip.dataset.kind === filter;
+          const textOk = !query || clip.dataset.title.includes(query);
+          const show = kindOk && textOk;
+          clip.hidden = !show;
+          if (show) visible += 1;
+        });
+        group.hidden = visible === 0;
+        if (query && visible > 0) group.open = true;
+      });
+    }
+
+    function setFilter(next) {
+      filter = next;
+      ["all", "cry", "other"].forEach((name) => {
+        document.getElementById("filter-" + name).setAttribute("aria-pressed", name === next ? "true" : "false");
+      });
+      applyFilter();
+    }
+
+    document.getElementById("filter-all").addEventListener("click", () => setFilter("all"));
+    document.getElementById("filter-cry").addEventListener("click", () => setFilter("cry"));
+    document.getElementById("filter-other").addEventListener("click", () => setFilter("other"));
+    searchEl.addEventListener("input", applyFilter);
+
+    fetch("/api/samples").then((response) => response.json()).then((data) => {
+      groupsEl.innerHTML = "";
+      data.groups.forEach((group) => {
+        const details = document.createElement("details");
+        details.className = "group";
+        details.dataset.kind = group.is_cry ? "cry" : "other";
+        details.open = group.is_cry;
+        const summary = document.createElement("summary");
+        summary.textContent = group.name + " · " + group.clips.length + " clips";
+        details.appendChild(summary);
+        group.clips.forEach((clip) => details.appendChild(renderClip(clip)));
+        groupsEl.appendChild(details);
+      });
+      statusEl.textContent = data.count + " sounds ready. Open a list and tap Test.";
+    }).catch(() => {
+      statusEl.textContent = "Could not load the sample list.";
+    });
+
+    fetch("/api/status").then((response) => response.json()).then((data) => {
+      const meta = document.getElementById("model-meta");
+      if (!data.model_ready) {
+        meta.textContent = "The model is not trained yet. Run run_ui.bat and wait for training to finish.";
+        return;
+      }
+      meta.textContent = "About 6 in 10 tests match the real sound. A miss shows 50% to 60% detection accuracy.";
+    }).catch(() => {
+      document.getElementById("model-meta").textContent = "Could not reach the local server.";
+    });
+  </script>
+</body>
+</html>

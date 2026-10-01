@@ -1,0 +1,16 @@
+{
+  "accuracy": 0.9292929292929293,
+  "recall": 0.9291836734693877,
+  "precision": 0.9295343137254901,
+  "f1": 0.9292640604266613,
+  "cry_recall": 0.94,
+  "cry_precision": 0.9215686274509803,
+  "n_samples": 396,
+  "n_cry": 200,
+  "n_other": 196,
+  "best_params": {
+    "clf__C": 1,
+    "clf__gamma": "scale",
+    "clf__kernel": "rbf"
+  }
+}
